@@ -68,6 +68,9 @@ def setup_parser() -> argparse.ArgumentParser:
         "--model", "-m", type=str, default="hf", help="Name of model e.g. `hf`"
     )
     parser.add_argument(
+        "--tokenizer", type=str, default=None, help="Name or path of pretrained tokenizer"
+    )
+    parser.add_argument(
         "--tasks",
         "-t",
         default=None,
@@ -258,6 +261,61 @@ def parse_eval_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
     return parser.parse_args()
 
 
+def get_model(args,eval_logger):
+    import lm_eval.api.registry
+    from morphpiece import MorphPiece
+    from transformers import AutoTokenizer
+    
+    model = args.model
+    tokenizer_id = args.tokenizer
+    model_args = args.model_args
+    batch_size = args.batch_size
+    max_batch_size = args.max_batch_size
+    device = args.device
+    
+    if tokenizer_id is not None:
+        if 'morph' in tokenizer_id:
+            tokenizer = MorphPiece(data_dir=tokenizer_id)
+            eval_logger.war(f"Initializing MorphPiece tokenizer from: {tokenizer_id}")
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_id)
+            eval_logger.warn(f"Initializing HuggingFace tokenizer from: {tokenizer_id}")
+        
+    
+    if model_args is None:
+        eval_logger.warning("model_args not specified. Using defaults.")
+        model_args = ""
+
+    if isinstance(model_args, dict):
+        eval_logger.info(
+            f"Initializing {model} model, with arguments: {model_args}"
+        )
+        lm = lm_eval.api.registry.get_model(model).create_from_arg_obj(
+            model_args,
+            {
+                "batch_size": batch_size,
+                "max_batch_size": max_batch_size,
+                "device": device,
+                "tokenizer": tokenizer if tokenizer_id is not None else None,
+            },
+        )
+
+    else:
+        eval_logger.info(
+            f"Initializing {model} model, with arguments: {simple_parse_args_string(model_args)}"
+        )
+        lm = lm_eval.api.registry.get_model(model).create_from_arg_string(
+            model_args,
+            {
+                "batch_size": batch_size,
+                "max_batch_size": max_batch_size,
+                "device": device,
+                "tokenizer": tokenizer if tokenizer_id is not None else None,
+            },
+        )
+    
+    return lm
+
 def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
     if not args:
         # we allow for args to be passed externally, else we parse them ourselves
@@ -371,9 +429,12 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
     request_caching_args = request_caching_arg_to_dict(
         cache_requests=args.cache_requests
     )
+    
+    lm = get_model(args,eval_logger)
 
     results = evaluator.simple_evaluate(
-        model=args.model,
+        # model=args.model,
+        model=lm,
         model_args=args.model_args,
         tasks=task_names,
         num_fewshot=args.num_fewshot,
