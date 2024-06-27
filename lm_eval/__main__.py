@@ -276,7 +276,7 @@ def get_model(args,eval_logger):
     if tokenizer_id is not None:
         if 'morph' in tokenizer_id:
             tokenizer = MorphPiece(data_dir=tokenizer_id)
-            eval_logger.war(f"Initializing MorphPiece tokenizer from: {tokenizer_id}")
+            eval_logger.warn(f"Initializing MorphPiece tokenizer from: {tokenizer_id}")
         else:
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_id)
             eval_logger.warn(f"Initializing HuggingFace tokenizer from: {tokenizer_id}")
