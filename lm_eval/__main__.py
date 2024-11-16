@@ -71,6 +71,12 @@ def setup_parser() -> argparse.ArgumentParser:
         "--tokenizer", type=str, default=None, help="Name or path of pretrained tokenizer"
     )
     parser.add_argument(
+        "--is_morphpiece", type=bool, default=False, help="If the tokenizer is to be loaded as MorphPiece"
+    )
+    parser.add_argument(
+        "--lang", type=str, default=None, help="Language of xMorphPiece"
+    )
+    parser.add_argument(
         "--tasks",
         "-t",
         default=None,
@@ -281,12 +287,12 @@ def get_model(args,eval_logger):
     device = args.device
     
     if tokenizer_id is not None:
-        if 'morph' in tokenizer_id:
-            tokenizer = MorphPiece(data_dir=tokenizer_id)
-            eval_logger.warn(f"Initializing MorphPiece tokenizer from: {tokenizer_id}")
+        if args.is_morphpiece:
+            tokenizer = MorphPiece(lang=args.lang,data_dir=tokenizer_id)
+            eval_logger.info(f"Initializing MorphPiece tokenizer from: {tokenizer_id}")
         else:
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_id)
-            eval_logger.warn(f"Initializing HuggingFace tokenizer from: {tokenizer_id}")
+            eval_logger.info(f"Initializing HuggingFace tokenizer from: {tokenizer_id}")
         
     
     if model_args is None:
